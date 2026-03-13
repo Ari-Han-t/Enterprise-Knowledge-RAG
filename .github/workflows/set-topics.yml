@@ -1,0 +1,35 @@
+name: Set Repository Topics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  set-topics:
+    runs-on: ubuntu-latest
+    permissions:
+      administration: write
+    steps:
+      - name: Set repository topics
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/topics \
+            -f "names[]=rag" \
+            -f "names[]=retrieval-augmented-generation" \
+            -f "names[]=fastapi" \
+            -f "names[]=python" \
+            -f "names[]=llm" \
+            -f "names[]=chromadb" \
+            -f "names[]=vector-database" \
+            -f "names[]=enterprise" \
+            -f "names[]=knowledge-base" \
+            -f "names[]=groq" \
+            -f "names[]=embeddings" \
+            -f "names[]=docker" \
+            -f "names[]=jwt-authentication" \
+            -f "names[]=ocr" \
+            -f "names[]=whisper"
