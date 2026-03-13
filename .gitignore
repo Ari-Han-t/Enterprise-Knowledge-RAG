@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+Backend/__pycache__/
+Backend/**/*.py[cod]
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ML/Data
+hf_cache/
+*.index
+faiss.index
+Backend/hf_cache/
+Backend/*.index
+Backend/faiss.index
+Backend/metadata.json
+Backend/chat_history.json
+Backend/users.json
+Backend/data/users/
+
+# Cache
+tts_outputs/
+*.cache
+Backend/tts_outputs/
+
+# Secrets and sensitive data
+.env
+.env.local
+secrets.json
+api_keys.json
+
+# Local git metadata
+Backend/.git
+Backend/.git.local-backup/
+
+# Misc local files
+nul

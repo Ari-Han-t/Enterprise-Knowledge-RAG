@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+
+# Virtual envs
+env/
+venv/
+.venv/
+
+# Node / frontend junk
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# HuggingFace cache (DO NOT COPY INTO IMAGE)
+hf_cache/
+.cache/
+~/.cache/
+
+# Data & uploads
+*.pdf
+*.pptx
+*.png
+*.jpg
+uploads/
+data/
+
+# OS
+.DS_Store
+Thumbs.db

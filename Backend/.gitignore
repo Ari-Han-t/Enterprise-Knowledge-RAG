@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+env/
+.venv/
+
+# Runtime data
+data/
+users.json
+faiss.index
+metadata.json
+chat.json
+
+# Models / caches
+.cache/
+sentence-transformers/
+*.bin
+*.pt
+
+# Env
+.env
