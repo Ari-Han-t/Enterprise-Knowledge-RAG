@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PaperLens RAG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="layout">
+    <section class="hero">
+      <p class="eyebrow">Enterprise Research Paper Analyzer</p>
+      <h1>Upload papers, ask grounded questions, and keep every answer tied to citations.</h1>
+      <p class="lede">Low-cost RAG stack with Groq by default, hybrid retrieval, strict request controls, and user-isolated document stores.</p>
+      <div class="card">
+        <label for="apiBase">Backend URL</label>
+        <input id="apiBase" placeholder="http://localhost:8000" />
+        <small>Saved locally in your browser so the same frontend can point to local, Render, or Railway deployments.</small>
+      </div>
+    </section>
+
+    <section class="panel auth-panel">
+      <div class="panel-header">
+        <h2>Account</h2>
+        <button id="logoutBtn" class="ghost">Logout</button>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>Sign up</h3>
+          <input id="signupEmail" type="email" placeholder="you@company.com" />
+          <input id="signupPassword" type="password" placeholder="minimum 8 characters" />
+          <button id="signupBtn">Create account</button>
+        </div>
+        <div class="card">
+          <h3>Login</h3>
+          <input id="loginEmail" type="email" placeholder="you@company.com" />
+          <input id="loginPassword" type="password" placeholder="your password" />
+          <button id="loginBtn">Login</button>
+        </div>
+      </div>
+      <p id="authState" class="status"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Upload PDF</h2>
+        <span class="pill">Max 5 uploads/day, 10MB each</span>
+      </div>
+      <div class="card">
+        <input id="pdfInput" type="file" accept="application/pdf" multiple />
+        <button id="uploadBtn">Upload papers</button>
+        <p id="uploadState" class="status"></p>
+      </div>
+    </section>
+
+    <section class="panel chat-panel">
+      <div class="panel-header">
+        <h2>Ask Questions</h2>
+        <span class="pill">Max 10 queries/minute</span>
+      </div>
+      <div class="card">
+        <textarea id="questionInput" rows="4" placeholder="What dataset did the paper use, and what were the main limitations?"></textarea>
+        <div class="actions">
+          <button id="askBtn">Ask</button>
+          <button id="historyBtn" class="ghost">Refresh history</button>
+        </div>
+      </div>
+      <div id="answerCard" class="card response-card">
+        <h3>Latest answer</h3>
+        <pre id="answerOutput">No answer yet.</pre>
+        <div id="citationOutput" class="citations"></div>
+      </div>
+      <div id="historyCard" class="card">
+        <h3>History</h3>
+        <div id="historyOutput" class="history"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+

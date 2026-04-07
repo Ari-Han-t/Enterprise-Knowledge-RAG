@@ -1,264 +1,161 @@
-# Enterprise Knowledge RAG
+# AI Research Paper Analyzer
 
-Enterprise Knowledge RAG is a FastAPI backend for building a private, user-scoped knowledge assistant over enterprise documents and media. It ingests files, stores embeddings in ChromaDB, retrieves relevant context per user, and answers questions with Groq while forcing responses to stay grounded in uploaded material.
+Production-oriented enterprise RAG SaaS for research-paper analysis. The stack is optimized for low-cost operation, defaults to Groq for generation, keeps the LLM provider swappable, and enforces strict rate limits before expensive work runs.
 
-## What it does
+## What changed
 
-- User authentication with JWT-based signup and login
-- Per-user document collections and chat history
-- Retrieval-augmented question answering over uploaded company knowledge
-- Streaming answers over Server-Sent Events
-- Multimodal ingestion for text, PDFs, slides, images, and audio
-- OCR and transcription support for scanned/image and audio inputs
+- Refactored the original single-file backend into a modular FastAPI app
+- Added JWT auth with isolated per-user document and query history
+- Enforced middleware-based rate limiting by user ID and IP
+- Restricted uploads to PDFs with a 10MB size cap
+- Implemented hybrid retrieval:
+  - Dense vector search with Chroma
+  - Keyword search with BM25
+  - Cross-encoder reranking
+- Added query rewriting, cached answers, evaluation logging, and streaming answers
+- Added a minimal deployable frontend in `frontend/`
+- Updated Docker and compose setup for backend + Redis
 
-## Good use cases
-
-- Internal policy and handbook Q&A
-- Sales enablement over decks, PDFs, and notes
-- Knowledge search for operations or support teams
-- Contract, SOP, or documentation lookup across uploaded files
-- Team-specific assistants where each user keeps their own indexed knowledge base
-
-## Supported file types
-
-The upload pipeline currently supports:
-
-- Text: `txt`
-- PDF: `pdf`
-- PowerPoint: `pptx`
-- Images with OCR: `png`, `jpg`, `jpeg`
-- Audio transcription: `mp3`, `wav`, `m4a`, `flac`, `ogg`
-
-## Tech stack
-
-- FastAPI + Uvicorn
-- Groq for LLM inference
-- Sentence Transformers (`all-MiniLM-L6-v2` by default) for embeddings
-- ChromaDB for persistent vector storage
-- Tesseract + Poppler for OCR workflows
-- Whisper for audio transcription
-
-## Project structure
+## Architecture
 
 ```text
 .
-├── docker-compose.yml
-└── Backend/
-    ├── main.py
-    ├── requirements.txt
-    ├── Dockerfile
-    └── .env   # create this locally
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── rag/
+│   │   ├── rate_limit/
+│   │   ├── schemas/
+│   │   └── services/
+│   ├── .env.example
+│   ├── Dockerfile
+│   ├── Procfile
+│   ├── main.py
+│   └── requirements.txt
+├── frontend/
+│   ├── app.js
+│   ├── index.html
+│   ├── styles.css
+│   └── vercel.json
+└── docker-compose.yml
 ```
+
+## Backend features
+
+- `POST /auth/signup`
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /upload`
+- `POST /ask`
+- `POST /ask/stream`
+- `GET /history`
+- `GET /health`
+
+### Security and cost controls
+
+- JWT-based auth
+- User-scoped document isolation
+- Middleware-enforced request throttling
+- Upload cap: 5 requests per user per day
+- Query cap: 10 requests per user per minute
+- IP-based throttling in parallel with user throttling
+- File size cap: 10MB
+- Max question token budget enforced before generation
+- Query-result cache to avoid repeated LLM calls
+- Redis preferred, in-memory fallback when Redis is unavailable
+
+## Retrieval pipeline
+
+1. PDF text extraction with page-aware citations
+2. Token-aware chunking around 500 tokens with overlap
+3. Dense retrieval with `all-MiniLM-L6-v2`
+4. BM25 keyword retrieval across the user corpus
+5. Reciprocal-rank-style fusion of dense and keyword hits
+6. Cross-encoder reranking with `ms-marco-MiniLM-L-6-v2`
+7. Query rewriting before retrieval
+8. Citation-grounded answer generation
+
+## Evaluation logging
+
+Each answered query stores:
+
+- original question
+- rewritten query
+- retrieved chunks
+- answer
+- citations
+- retrieval score
+- hallucination-risk heuristic
+- optional LLM answer score
 
 ## Environment variables
 
-The backend loads environment variables from `Backend/.env`.
+Copy `backend/.env.example` to `backend/.env`.
 
-Minimum required variable:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-Recommended full example:
+Important values:
 
 ```env
-GROQ_API_KEY=your_groq_api_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
-JWT_SECRET=replace-this-with-a-long-random-secret
-CHROMA_DIR=data/chroma
-EMBED_MODEL_NAME=all-MiniLM-L6-v2
-MIN_SIMILARITY=0.30
-MAX_K=6
-WHISPER_MODEL=base
+JWT_SECRET=replace-this
+DATABASE_URL=sqlite:///./data/app.db
+REDIS_URL=redis://redis:6379/0
 
-# Needed mainly for local Windows setups if OCR/PDF extraction is used
-TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
-POPPLER_PATH=C:\path\to\poppler\Library\bin
+LLM_PROVIDER=groq
+GROQ_API_KEY=your_key_here
+GROQ_MODEL=llama-3.1-8b-instant
+
+FRONTEND_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
-## Add your Groq API key
+No API keys are hardcoded. `.env` is gitignored.
 
-1. Create a Groq API key from your Groq account.
-2. Create the file `Backend/.env`.
-3. Add at least:
+## Local setup
 
-```env
-GROQ_API_KEY=your_real_key_here
-```
-
-4. Set `JWT_SECRET` to a strong random value before using this outside local testing.
-
-The application will fail to start if `GROQ_API_KEY` is missing.
-
-## Run with Docker
-
-This is the easiest path because the container already installs system packages required for OCR and audio processing.
-
-### Prerequisites
-
-- Docker
-- Docker Compose
-
-### Start
-
-1. Create `Backend/.env` using the example above.
-2. From the repository root, run:
+### Backend
 
 ```bash
-docker compose up --build
-```
-
-3. The API will be available at:
-
-```text
-http://localhost:8000
-```
-
-4. Health check:
-
-```text
-http://localhost:8000/health
-```
-
-## Run locally
-
-### Prerequisites
-
-- Python 3.11
-- Tesseract OCR
-- Poppler
-- FFmpeg
-
-### Install Python dependencies
-
-From the `Backend` folder:
-
-```bash
-pip install "numpy<2.0"
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+copy .env.example .env
+uvicorn main:app --reload
 ```
 
-### Start the server
+### Frontend
 
-From the `Backend` folder:
+The frontend is static. Open `frontend/index.html` directly, or serve it with any static host. Set the backend URL in the UI.
 
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Windows note
-
-If you want image OCR or scanned PDF extraction on Windows, set these in `Backend/.env` to your local installs:
-
-- `TESSERACT_CMD`
-- `POPPLER_PATH`
-
-If you do not set them correctly, OCR-related uploads may fail even though plain text and standard PDFs still work.
-
-## API workflow
-
-### 1. Sign up
-
-`POST /auth/signup`
-
-Example body:
-
-```json
-{
-  "username": "alice",
-  "password": "strong-password"
-}
-```
-
-### 2. Log in
-
-`POST /auth/login`
-
-Example body:
-
-```json
-{
-  "username": "alice",
-  "password": "strong-password"
-}
-```
-
-This returns an `access_token`. Use it as a Bearer token for protected routes.
-
-### 3. Upload files
-
-`POST /upload`
-
-Send a multipart form request with the file and the Bearer token.
-
-### 4. Ask questions
-
-`POST /ask`
-
-Example body:
-
-```json
-{
-  "question": "What does the onboarding policy say about probation?"
-}
-```
-
-The backend retrieves the most relevant chunks from the current user's collection and asks Groq to answer only from that context.
-
-### 5. Stream answers
-
-`POST /ask/stream`
-
-Returns an SSE stream for incremental responses.
-
-### 6. View saved chat history
-
-`GET /history`
-
-Returns the authenticated user's saved Q&A history.
-
-## Important behavior
-
-- Data is isolated per user.
-- Answers are designed to stay grounded in uploaded content.
-- If no relevant context is found, the app refuses rather than fabricating an answer.
-- Chat history is persisted per user.
-- Vector data is stored on disk through ChromaDB persistence.
-
-## Operational notes
-
-- First startup can be slower because embedding and transcription models may need to download.
-- Large local caches, user data, and runtime artifacts are intentionally ignored by git.
-- This repository currently contains the backend service only.
-
-## Default runtime settings
-
-Current defaults in the backend:
-
-- `GROQ_MODEL=llama-3.3-70b-versatile`
-- `CHROMA_DIR=data/chroma`
-- `EMBED_MODEL_NAME=all-MiniLM-L6-v2`
-- `MIN_SIMILARITY=0.30`
-- `MAX_K=6`
-- `WHISPER_MODEL=base`
-
-## Security notes
-
-- Change `JWT_SECRET` before any shared or production deployment.
-- Do not commit `Backend/.env`.
-- Uploaded enterprise data is stored locally on disk unless you change the storage setup.
-
-## Quick start
-
-```bash
-cd Backend
-```
-
-Create `Backend/.env`, then from the repository root:
+## Docker
 
 ```bash
 docker compose up --build
 ```
 
-Open `http://localhost:8000/docs` for the FastAPI Swagger UI once the server is running.
+Backend will start on `http://localhost:8000` and Redis on `localhost:6379`.
+
+## Deploy
+
+### Render or Railway
+
+- Deploy `backend/` as the web service
+- Add a persistent disk for `backend/data`
+- Set env vars from `backend/.env.example`
+- Add Redis and set `REDIS_URL`
+- Start command:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+### Vercel
+
+- Deploy the `frontend/` directory as a static site
+- In the UI, set the backend URL to the public FastAPI deployment
+
+## Notes
+
+- Groq is the default provider for low-cost inference.
+- If `GROQ_API_KEY` is not set, the backend still starts and falls back to extractive, non-LLM answers so the stack can be tested without paid usage.
+- SQLite is used by default for low-friction deployment. Move `DATABASE_URL` to Postgres later if you want horizontal scale.

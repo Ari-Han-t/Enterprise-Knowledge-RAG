@@ -10,8 +10,8 @@ ENV/
 *.egg-info/
 dist/
 build/
-Backend/__pycache__/
-Backend/**/*.py[cod]
+backend/__pycache__/
+backend/**/*.py[cod]
 
 # IDE
 .vscode/
@@ -24,18 +24,19 @@ Backend/**/*.py[cod]
 hf_cache/
 *.index
 faiss.index
-Backend/hf_cache/
-Backend/*.index
-Backend/faiss.index
-Backend/metadata.json
-Backend/chat_history.json
-Backend/users.json
-Backend/data/users/
+backend/hf_cache/
+backend/*.index
+backend/faiss.index
+backend/metadata.json
+backend/chat_history.json
+backend/users.json
+backend/data/
+frontend/.vercel/
 
 # Cache
 tts_outputs/
 *.cache
-Backend/tts_outputs/
+backend/tts_outputs/
 
 # Secrets and sensitive data
 .env
@@ -44,8 +45,8 @@ secrets.json
 api_keys.json
 
 # Local git metadata
-Backend/.git
-Backend/.git.local-backup/
+backend/.git
+backend/.git.local-backup/
 
 # Misc local files
 nul
