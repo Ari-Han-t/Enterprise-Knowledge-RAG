@@ -30,8 +30,32 @@ body {
   padding: 32px 0 56px;
 }
 
+.auth-layout {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+}
+
 .hero {
   padding: 24px 0;
+}
+
+.hero-tight {
+  padding-bottom: 8px;
+}
+
+.hero-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .eyebrow {
@@ -88,6 +112,12 @@ h1 {
 
 .grid > .card {
   flex: 1 1 280px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: 16px;
 }
 
 .card {
@@ -149,6 +179,43 @@ button.ghost {
   border: 1px solid var(--line);
 }
 
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  margin-top: 0;
+}
+
+.tab.active {
+  background: var(--ink);
+  color: white;
+}
+
+.tab.ghost-tab {
+  background: rgba(19, 41, 61, 0.08);
+  color: var(--ink);
+}
+
+.hidden {
+  display: none;
+}
+
 .response-card pre {
   white-space: pre-wrap;
   margin: 0;
@@ -170,6 +237,10 @@ button.ghost {
   background: rgba(19, 41, 61, 0.04);
 }
 
+.history-item p {
+  margin-bottom: 0;
+}
+
 @media (max-width: 720px) {
   .layout {
     width: min(100% - 20px, 1120px);
@@ -181,5 +252,9 @@ button.ghost {
     flex-direction: column;
     align-items: stretch;
   }
-}
 
+  .hero-topbar,
+  .content-grid {
+    display: block;
+  }
+}

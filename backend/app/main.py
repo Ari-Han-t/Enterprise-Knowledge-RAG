@@ -18,7 +18,6 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.chroma_dir).mkdir(parents=True, exist_ok=True)
     Path("./data").mkdir(parents=True, exist_ok=True)
     init_db()
     retrieval_service.warm()
@@ -43,4 +42,3 @@ def health() -> dict[str, str]:
 
 app.include_router(auth_router)
 app.include_router(rag_router)
-

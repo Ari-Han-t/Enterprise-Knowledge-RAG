@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PaperLens Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=2" />
+</head>
+<body>
+  <main class="layout">
+    <section class="hero">
+      <div class="hero-topbar">
+        <div>
+          <p class="eyebrow">PaperLens Workspace</p>
+          <h1>Ask grounded questions over uploaded research papers.</h1>
+        </div>
+        <div class="hero-actions">
+          <span id="sessionLabel" class="pill"></span>
+          <a class="link-button" href="./login.html">Account</a>
+          <button id="logoutBtn" class="ghost" type="button">Logout</button>
+        </div>
+      </div>
+      <p class="lede">Summaries, limitations, methods, and evidence-backed answers stay tied to the chunks retrieved from each user’s own paper library.</p>
+      <div class="card">
+        <label for="apiBase">Backend URL</label>
+        <input id="apiBase" placeholder="http://localhost:8000" />
+        <small>Useful when switching from local development to a deployed backend.</small>
+        <p id="backendState" class="status"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Upload PDF</h2>
+        <span class="pill">Max 5 uploads/day, 10MB each</span>
+      </div>
+      <div class="card">
+        <input id="pdfInput" type="file" accept="application/pdf" multiple />
+        <button id="uploadBtn" type="button">Upload papers</button>
+        <p id="uploadState" class="status"></p>
+      </div>
+    </section>
+
+    <section class="panel chat-panel">
+      <div class="panel-header">
+        <h2>Ask Questions</h2>
+        <span class="pill">Max 10 queries/minute</span>
+      </div>
+      <div class="card">
+        <textarea id="questionInput" rows="4" placeholder="What dataset did the paper use, and what were the main limitations?"></textarea>
+        <div class="actions">
+          <button id="askBtn" type="button">Ask</button>
+          <button id="historyBtn" class="ghost" type="button">Refresh history</button>
+        </div>
+      </div>
+      <div class="content-grid">
+        <div id="answerCard" class="card response-card">
+          <h3>Latest answer</h3>
+          <pre id="answerOutput">No answer yet.</pre>
+          <div id="citationOutput" class="citations"></div>
+        </div>
+        <div id="historyCard" class="card">
+          <h3>History</h3>
+          <div id="historyOutput" class="history"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js?v=2"></script>
+  <script src="./chat.js?v=2"></script>
+</body>
+</html>

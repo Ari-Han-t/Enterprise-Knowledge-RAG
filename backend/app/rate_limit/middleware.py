@@ -30,9 +30,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
 
         elif path in {"/ask", "/ask/stream"} and method == "POST":
-            limited = self._enforce_scope(request, scope="query", limit=settings.max_queries_per_minute, window_seconds=60)
+            limited = self._enforce_scope(
+                request,
+                scope="query",
+                limit=settings.max_queries_per_minute,
+                window_seconds=60,
+            )
             if limited is not None:
                 return limited
+
+            limited = self._enforce_scope(
+                request,
+                scope="query_day",
+                limit=settings.max_queries_per_day,
+                window_seconds=86400,
+            )
+            if limited is not None:
+                return limited
+
 
         elif path in {"/auth/login", "/auth/signup"} and method == "POST":
             limited = self._enforce_scope(request, scope="auth", limit=10, window_seconds=60, user_scoped=False)

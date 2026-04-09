@@ -1,13 +1,13 @@
 import hashlib
 import io
 import json
+from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import chromadb
+import numpy as np
 from pypdf import PdfReader
 from rank_bm25 import BM25Okapi
-from sentence_transformers import CrossEncoder, SentenceTransformer
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -22,29 +22,8 @@ settings = get_settings()
 
 
 class RetrievalService:
-    def __init__(self) -> None:
-        self._embedder: SentenceTransformer | None = None
-        self._reranker: CrossEncoder | None = None
-        self._chroma = chromadb.PersistentClient(path=settings.chroma_dir)
-        self._collection = self._chroma.get_or_create_collection(
-            name="research_chunks",
-            metadata={"hnsw:space": "cosine"},
-        )
-
     def warm(self) -> None:
-        Path(settings.chroma_dir).mkdir(parents=True, exist_ok=True)
-
-    @property
-    def embedder(self) -> SentenceTransformer:
-        if self._embedder is None:
-            self._embedder = SentenceTransformer(settings.embedding_model_name)
-        return self._embedder
-
-    @property
-    def reranker(self) -> CrossEncoder:
-        if self._reranker is None:
-            self._reranker = CrossEncoder(settings.rerank_model_name)
-        return self._reranker
+        Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
     def refusal_message(self) -> str:
         return "I do not have enough paper context to answer that yet. Upload a relevant PDF or ask a more specific question."
@@ -66,41 +45,25 @@ class RetrievalService:
         db.flush()
 
         records: list[Chunk] = []
-        texts: list[str] = []
-        ids: list[str] = []
-        metadatas: list[dict] = []
-
         for page_number, page_text in pages:
             for item in chunk_page_text(filename=filename, page_number=page_number, text=page_text):
-                chunk = Chunk(
-                    id=new_id(),
-                    user_id=user_id,
-                    document_id=document.id,
-                    filename=filename,
-                    page_number=item["page_number"],
-                    chunk_index=item["chunk_index"],
-                    token_count=item["token_count"],
-                    citation=item["citation"],
-                    text=item["text"],
-                )
-                records.append(chunk)
-                texts.append(item["text"])
-                ids.append(chunk.id)
-                metadatas.append(
-                    {
-                        "user_id": user_id,
-                        "document_id": document.id,
-                        "filename": filename,
-                        "page_number": item["page_number"],
-                        "citation": item["citation"],
-                    }
+                records.append(
+                    Chunk(
+                        id=new_id(),
+                        user_id=user_id,
+                        document_id=document.id,
+                        filename=filename,
+                        page_number=item["page_number"],
+                        chunk_index=item["chunk_index"],
+                        token_count=item["token_count"],
+                        citation=item["citation"],
+                        text=item["text"],
+                    )
                 )
 
-        if not texts:
+        if not records:
             raise ValueError(f"No chunks generated for {filename}")
 
-        embeddings = self.embedder.encode(texts, normalize_embeddings=True).tolist()
-        self._collection.add(ids=ids, documents=texts, embeddings=embeddings, metadatas=metadatas)
         db.add_all(records)
         document.chunk_count = len(records)
         db.commit()
@@ -117,12 +80,12 @@ class RetrievalService:
         }
 
     def retrieve(self, *, db: Session, user_id: str, query: str) -> dict:
-        chunk_count = db.scalar(select(func.count()).select_from(Chunk).where(Chunk.user_id == user_id)) or 0
-        if chunk_count == 0:
+        rows = db.scalars(select(Chunk).where(Chunk.user_id == user_id)).all()
+        if not rows:
             return {"hits": []}
 
-        dense_hits = self._dense_search(user_id=user_id, query=query)
-        keyword_hits = self._keyword_search(db=db, user_id=user_id, query=query)
+        dense_hits = self._dense_search(rows=rows, query=query)
+        keyword_hits = self._keyword_search(rows=rows, query=query)
         merged = self._merge_hits(dense_hits=dense_hits, keyword_hits=keyword_hits)
         reranked = self._rerank(query=query, hits=merged)
         return {"hits": reranked[: settings.top_k_final]}
@@ -196,40 +159,28 @@ class RetrievalService:
                 pages.append((index, text))
         return pages
 
-    def _dense_search(self, *, user_id: str, query: str) -> list[dict]:
-        query_vector = self.embedder.encode([query], normalize_embeddings=True).tolist()[0]
-        response = self._collection.query(
-            query_embeddings=[query_vector],
-            n_results=settings.top_k_dense,
-            where={"user_id": user_id},
-            include=["documents", "metadatas", "distances"],
-        )
-        docs = response.get("documents", [[]])[0]
-        metas = response.get("metadatas", [[]])[0]
-        dists = response.get("distances", [[]])[0]
+    def _dense_search(self, *, rows: list[Chunk], query: str) -> list[dict]:
+        query_vector = self._dense_vector(tokenize(query))
         hits: list[dict] = []
-        for index, (doc, meta, distance) in enumerate(zip(docs, metas, dists), start=1):
-            if not doc or not meta:
-                continue
-            score = round(max(0.0, 1 - float(distance)), 4)
+        for row in rows:
+            row_vector = self._dense_vector(tokenize(row.text))
+            score = self._cosine_similarity(query_vector, row_vector)
             hits.append(
                 {
-                    "id": f"dense:{meta['document_id']}:{meta['page_number']}:{index}",
-                    "text": doc,
-                    "filename": meta["filename"],
-                    "page_number": int(meta["page_number"]),
-                    "citation": meta["citation"],
-                    "dense_score": score,
+                    "id": row.id,
+                    "text": row.text,
+                    "filename": row.filename,
+                    "page_number": row.page_number,
+                    "citation": row.citation,
+                    "dense_score": round(score, 4),
                     "keyword_score": 0.0,
-                    "score": score,
+                    "score": round(score, 4),
                 }
             )
-        return hits
+        hits.sort(key=lambda item: item["dense_score"], reverse=True)
+        return hits[: settings.top_k_dense]
 
-    def _keyword_search(self, *, db: Session, user_id: str, query: str) -> list[dict]:
-        rows = db.scalars(select(Chunk).where(Chunk.user_id == user_id)).all()
-        if not rows:
-            return []
+    def _keyword_search(self, *, rows: list[Chunk], query: str) -> list[dict]:
         corpus = [tokenize(row.text) for row in rows]
         bm25 = BM25Okapi(corpus)
         scores = bm25.get_scores(tokenize(query))
@@ -253,16 +204,14 @@ class RetrievalService:
         return hits
 
     def _merge_hits(self, *, dense_hits: list[dict], keyword_hits: list[dict]) -> list[dict]:
-        merged: dict[tuple[str, int, str], dict] = {}
+        merged: dict[str, dict] = {}
         for rank, hit in enumerate(dense_hits, start=1):
-            key = (hit["filename"], hit["page_number"], hit["text"])
-            current = merged.setdefault(key, hit.copy())
+            current = merged.setdefault(hit["id"], hit.copy())
             current["score"] = current.get("score", 0.0) + 1 / (60 + rank)
             current["dense_score"] = max(current.get("dense_score", 0.0), hit["dense_score"])
 
         for rank, hit in enumerate(keyword_hits, start=1):
-            key = (hit["filename"], hit["page_number"], hit["text"])
-            current = merged.setdefault(key, hit.copy())
+            current = merged.setdefault(hit["id"], hit.copy())
             current["score"] = current.get("score", 0.0) + 1 / (60 + rank)
             current["keyword_score"] = max(current.get("keyword_score", 0.0), hit["keyword_score"])
 
@@ -271,12 +220,55 @@ class RetrievalService:
     def _rerank(self, *, query: str, hits: list[dict]) -> list[dict]:
         if not hits:
             return []
-        pairs = [[query, hit["text"]] for hit in hits]
-        scores = self.reranker.predict(pairs)
-        for hit, value in zip(hits, scores):
-            hit["rerank_score"] = round(float(value), 4)
-            hit["score"] = round((hit.get("score", 0.0) * 0.35) + (float(value) * 0.65), 4)
+
+        query_tokens = tokenize(query)
+        query_terms = set(query_tokens)
+        query_phrases = set(self._ngrams(query_tokens, 2))
+
+        for hit in hits:
+            doc_tokens = tokenize(hit["text"])
+            doc_terms = set(doc_tokens)
+            shared_terms = len(query_terms & doc_terms) / max(len(query_terms), 1)
+            phrase_overlap = len(query_phrases & set(self._ngrams(doc_tokens, 2))) / max(len(query_phrases), 1) if query_phrases else 0.0
+            exact_bonus = 0.15 if query.lower() in hit["text"].lower() else 0.0
+            rerank_score = min((shared_terms * 0.65) + (phrase_overlap * 0.2) + exact_bonus, 1.0)
+            hit["rerank_score"] = round(rerank_score, 4)
+            hit["score"] = round(
+                (hit.get("dense_score", 0.0) * 0.3)
+                + (hit.get("keyword_score", 0.0) * 0.25)
+                + (hit["score"] * 0.1)
+                + (rerank_score * 0.35),
+                4,
+            )
+
         return sorted(hits, key=lambda item: item["score"], reverse=True)
+
+    def _dense_vector(self, tokens: list[str]) -> np.ndarray:
+        vector = np.zeros(settings.dense_vector_size, dtype=np.float32)
+        if not tokens:
+            return vector
+        counts = Counter(tokens)
+        for token, count in counts.items():
+            index = self._stable_hash(token) % settings.dense_vector_size
+            vector[index] += float(count)
+        norm = np.linalg.norm(vector)
+        return vector if norm == 0 else vector / norm
+
+    @staticmethod
+    def _cosine_similarity(left: np.ndarray, right: np.ndarray) -> float:
+        if not left.any() or not right.any():
+            return 0.0
+        return float(np.clip(np.dot(left, right), 0.0, 1.0))
+
+    @staticmethod
+    def _stable_hash(value: str) -> int:
+        return int(hashlib.sha256(value.encode("utf-8")).hexdigest(), 16)
+
+    @staticmethod
+    def _ngrams(tokens: list[str], n: int) -> list[str]:
+        if len(tokens) < n:
+            return []
+        return [" ".join(tokens[index:index + n]) for index in range(len(tokens) - n + 1)]
 
 
 retrieval_service = RetrievalService()

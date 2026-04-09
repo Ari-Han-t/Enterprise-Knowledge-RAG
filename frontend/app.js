@@ -17,18 +17,6 @@ const storage = {
   },
 };
 
-const apiBaseInput = document.getElementById("apiBase");
-const authState = document.getElementById("authState");
-const uploadState = document.getElementById("uploadState");
-const answerOutput = document.getElementById("answerOutput");
-const citationOutput = document.getElementById("citationOutput");
-const historyOutput = document.getElementById("historyOutput");
-
-apiBaseInput.value = storage.apiBase;
-apiBaseInput.addEventListener("change", () => {
-  storage.apiBase = apiBaseInput.value.trim();
-});
-
 function authHeaders(extra = {}) {
   const headers = { ...extra };
   if (storage.token) {
@@ -47,134 +35,37 @@ async function request(path, options = {}) {
   return body;
 }
 
-async function handleAuth(path, emailId, passwordId) {
-  const email = document.getElementById(emailId).value.trim();
-  const password = document.getElementById(passwordId).value.trim();
-  try {
-    const result = await request(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    storage.token = result.access_token;
-    authState.textContent = `Authenticated as ${result.user.email}`;
-    await loadHistory();
-  } catch (error) {
-    authState.textContent = error.message;
-  }
-}
-
-document.getElementById("signupBtn").addEventListener("click", () => handleAuth("/auth/signup", "signupEmail", "signupPassword"));
-document.getElementById("loginBtn").addEventListener("click", () => handleAuth("/auth/login", "loginEmail", "loginPassword"));
-document.getElementById("logoutBtn").addEventListener("click", () => {
-  storage.token = "";
-  authState.textContent = "Logged out";
-  historyOutput.innerHTML = "";
-});
-
-document.getElementById("uploadBtn").addEventListener("click", async () => {
-  const input = document.getElementById("pdfInput");
-  if (!input.files.length) {
-    uploadState.textContent = "Choose at least one PDF first.";
+function bindApiBaseInput(inputId, statusId) {
+  const input = document.getElementById(inputId);
+  if (!input) {
     return;
   }
-
-  const formData = new FormData();
-  Array.from(input.files).forEach((file) => formData.append("files", file));
-
-  try {
-    const result = await request("/upload", {
-      method: "POST",
-      headers: authHeaders(),
-      body: formData,
-    });
-    uploadState.textContent = `Processed ${result.processed.length} files and added ${result.total_chunks} chunks.`;
-  } catch (error) {
-    uploadState.textContent = error.message;
-  }
-});
-
-function renderCitations(citations = []) {
-  citationOutput.innerHTML = "";
-  citations.forEach((citation) => {
-    const div = document.createElement("div");
-    div.className = "citation";
-    div.textContent = citation.label;
-    citationOutput.appendChild(div);
+  input.value = storage.apiBase;
+  input.addEventListener("change", async () => {
+    storage.apiBase = input.value.trim();
+    const status = statusId ? document.getElementById(statusId) : null;
+    if (status) {
+      status.textContent = `Backend set to ${storage.apiBase}`;
+    }
   });
 }
 
-async function loadHistory() {
+async function validateSession() {
   if (!storage.token) {
-    return;
+    return null;
   }
   try {
-    const history = await request("/history", { headers: authHeaders() });
-    historyOutput.innerHTML = "";
-    history.forEach((item) => {
-      const div = document.createElement("div");
-      div.className = "history-item";
-      div.innerHTML = `<strong>${item.question}</strong><p>${item.answer}</p>`;
-      historyOutput.appendChild(div);
-    });
-  } catch (error) {
-    historyOutput.textContent = error.message;
+    return await request("/auth/me", { headers: authHeaders() });
+  } catch {
+    storage.token = "";
+    return null;
   }
 }
 
-document.getElementById("historyBtn").addEventListener("click", loadHistory);
-
-document.getElementById("askBtn").addEventListener("click", async () => {
-  const question = document.getElementById("questionInput").value.trim();
-  answerOutput.textContent = "Thinking...";
-  citationOutput.innerHTML = "";
-
-  try {
-    const response = await fetch(`${storage.apiBase}/ask/stream`, {
-      method: "POST",
-      headers: {
-        ...authHeaders({ "Content-Type": "application/json" }),
-      },
-      body: JSON.stringify({ question }),
-    });
-
-    if (!response.ok || !response.body) {
-      const errorText = await response.text();
-      throw new Error(errorText);
-    }
-
-    answerOutput.textContent = "";
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split("\n\n");
-      buffer = events.pop() || "";
-
-      for (const event of events) {
-        if (!event.startsWith("data: ")) continue;
-        const payload = JSON.parse(event.slice(6));
-        if (payload.type === "meta") {
-          renderCitations(payload.citations || []);
-        }
-        if (payload.type === "chunk") {
-          answerOutput.textContent += payload.text;
-        }
-      }
-    }
-
-    await loadHistory();
-  } catch (error) {
-    answerOutput.textContent = error.message;
+function requireAuth(redirect = "./login.html") {
+  if (!storage.token) {
+    window.location.href = redirect;
+    return false;
   }
-});
-
-if (storage.token) {
-  authState.textContent = "Session restored from local storage.";
-  loadHistory();
+  return true;
 }
-

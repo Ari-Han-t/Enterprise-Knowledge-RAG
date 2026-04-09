@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PaperLens Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=2" />
+</head>
+<body>
+  <main class="layout auth-layout">
+    <section class="hero hero-tight">
+      <p class="eyebrow">Enterprise Research Paper Analyzer</p>
+      <h1>Sign in before you start analyzing papers.</h1>
+      <p class="lede">Keep each user’s paper library isolated, rate-limited, and ready for grounded answers with citations.</p>
+    </section>
+
+    <section class="panel auth-page-panel">
+      <div class="grid">
+        <div class="card auth-info-card">
+          <h2>Connect to backend</h2>
+          <label for="apiBase">Backend URL</label>
+          <input id="apiBase" placeholder="http://localhost:8000" />
+          <small>Use your local FastAPI URL now, then switch this to your public backend later without changing the frontend files.</small>
+          <p id="backendState" class="status"></p>
+        </div>
+
+        <div class="card auth-form-card">
+          <div class="tabs">
+            <button id="showLoginBtn" class="tab active" type="button">Login</button>
+            <button id="showSignupBtn" class="tab ghost-tab" type="button">Sign up</button>
+          </div>
+
+          <div id="loginForm">
+            <h2>Welcome back</h2>
+            <input id="loginEmail" type="email" placeholder="you@company.com" />
+            <input id="loginPassword" type="password" placeholder="your password" />
+            <button id="loginBtn" type="button">Login</button>
+          </div>
+
+          <div id="signupForm" class="hidden">
+            <h2>Create account</h2>
+            <input id="signupEmail" type="email" placeholder="you@company.com" />
+            <input id="signupPassword" type="password" placeholder="minimum 8 characters" />
+            <button id="signupBtn" type="button">Create account</button>
+          </div>
+
+          <p id="authState" class="status"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js?v=2"></script>
+  <script src="./login.js?v=2"></script>
+</body>
+</html>

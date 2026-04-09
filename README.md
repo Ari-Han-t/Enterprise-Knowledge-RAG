@@ -9,12 +9,13 @@ Production-oriented enterprise RAG SaaS for research-paper analysis. The stack i
 - Enforced middleware-based rate limiting by user ID and IP
 - Restricted uploads to PDFs with a 10MB size cap
 - Implemented hybrid retrieval:
-  - Dense vector search with Chroma
+  - Lightweight dense retrieval with hashed semantic vectors
   - Keyword search with BM25
-  - Cross-encoder reranking
+  - Lexical reranking tuned for paper QA
 - Added query rewriting, cached answers, evaluation logging, and streaming answers
 - Added a minimal deployable frontend in `frontend/`
 - Updated Docker and compose setup for backend + Redis
+- Removed the heavyweight local ML build path from the default deploy image
 
 ## Architecture
 
@@ -70,10 +71,10 @@ Production-oriented enterprise RAG SaaS for research-paper analysis. The stack i
 
 1. PDF text extraction with page-aware citations
 2. Token-aware chunking around 500 tokens with overlap
-3. Dense retrieval with `all-MiniLM-L6-v2`
+3. Dense retrieval with stable hashed vectors stored in-process
 4. BM25 keyword retrieval across the user corpus
 5. Reciprocal-rank-style fusion of dense and keyword hits
-6. Cross-encoder reranking with `ms-marco-MiniLM-L-6-v2`
+6. Lightweight lexical reranking with term and phrase overlap
 7. Query rewriting before retrieval
 8. Citation-grounded answer generation
 
@@ -159,3 +160,4 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 - Groq is the default provider for low-cost inference.
 - If `GROQ_API_KEY` is not set, the backend still starts and falls back to extractive, non-LLM answers so the stack can be tested without paid usage.
 - SQLite is used by default for low-friction deployment. Move `DATABASE_URL` to Postgres later if you want horizontal scale.
+- The default Docker image is intentionally leaner now, so first-time builds should be much faster than the earlier local-transformer stack.

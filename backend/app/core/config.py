@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440
 
     database_url: str = "sqlite:///./data/app.db"
-    chroma_dir: str = "./data/chroma"
     upload_dir: str = "./data/uploads"
     redis_url: str | None = None
 
@@ -20,15 +19,14 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     groq_model: str = "llama-3.1-8b-instant"
 
-    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
-    rerank_model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    dense_vector_size: int = 768
 
     max_file_size_bytes: int = 10 * 1024 * 1024
     max_uploads_per_day: int = 5
     max_queries_per_minute: int = 10
     max_input_tokens: int = 1200
     max_generation_tokens: int = 500
-
+    max_queries_per_day: int =25
     top_k_dense: int = 8
     top_k_keyword: int = 8
     top_k_final: int = 6
@@ -36,7 +34,12 @@ class Settings(BaseSettings):
 
     frontend_origins: str = Field(default="http://localhost:3000,http://localhost:5173")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     @property
     def cors_origins(self) -> list[str]:
@@ -46,4 +49,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-
