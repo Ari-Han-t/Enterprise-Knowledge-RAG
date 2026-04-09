@@ -28,6 +28,11 @@ async def upload_pdf(
 ) -> UploadResponse:
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="At least one PDF is required")
+    if len(files) > settings.max_files_per_upload:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Upload at most {settings.max_files_per_upload} file per request for this demo.",
+        )
 
     processed: list[dict[str, Any]] = []
     rejected: list[dict[str, str]] = []
@@ -89,17 +94,17 @@ def ask_question_stream(
             detail=f"Question exceeds max input token budget of {settings.max_input_tokens}",
         )
 
-    rewritten_query = llm_service.rewrite_query(payload.question)
-    cache_key = retrieval_service.build_cache_key(db=db, user_id=user.id, rewritten_query=rewritten_query)
+    cache_key = retrieval_service.build_cache_key(db=db, user_id=user.id, query_text=payload.question)
     cached = retrieval_service.get_cached_answer(db=db, cache_key=cache_key)
     if cached is not None:
         def cached_stream():
-            yield f"data: {json.dumps({'type': 'meta', 'cached': True, 'rewritten_query': rewritten_query, 'citations': cached['citations']})}\n\n"
+            yield f"data: {json.dumps({'type': 'meta', 'cached': True, 'rewritten_query': payload.question, 'citations': cached['citations']})}\n\n"
             yield f"data: {json.dumps({'type': 'chunk', 'text': cached['answer']})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'evaluation': cached['evaluation']})}\n\n"
 
         return StreamingResponse(cached_stream(), media_type="text/event-stream")
 
+    rewritten_query = llm_service.rewrite_query(payload.question)
     retrieval = retrieval_service.retrieve(db=db, user_id=user.id, query=rewritten_query)
     if not retrieval["hits"]:
         def refusal_stream():
@@ -169,19 +174,19 @@ def _run_answer_pipeline(db: Session, user: User, payload: AskRequest) -> AskRes
             detail=f"Question exceeds max input token budget of {settings.max_input_tokens}",
         )
 
-    rewritten_query = llm_service.rewrite_query(payload.question)
-    cache_key = retrieval_service.build_cache_key(db=db, user_id=user.id, rewritten_query=rewritten_query)
+    cache_key = retrieval_service.build_cache_key(db=db, user_id=user.id, query_text=payload.question)
     cached = retrieval_service.get_cached_answer(db=db, cache_key=cache_key)
     if cached is not None:
         return AskResponse(
             answer=cached["answer"],
             citations=[Citation(**item) for item in cached["citations"]],
-            rewritten_query=rewritten_query,
+            rewritten_query=payload.question,
             cached=True,
             evaluation=EvaluationSummary(**cached["evaluation"]),
             retrieved_chunks=cached["retrieved_chunks"],
         )
 
+    rewritten_query = llm_service.rewrite_query(payload.question)
     retrieval = retrieval_service.retrieve(db=db, user_id=user.id, query=rewritten_query)
     if not retrieval["hits"]:
         return AskResponse(
@@ -222,4 +227,3 @@ def _run_answer_pipeline(db: Session, user: User, payload: AskRequest) -> AskRes
         evaluation=evaluation,
         retrieved_chunks=retrieval["hits"],
     )
-

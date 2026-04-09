@@ -1,6 +1,19 @@
 const storage = {
   get apiBase() {
-    return localStorage.getItem("paperlens_api_base") || "http://localhost:8000";
+    const savedBase = localStorage.getItem("paperlens_api_base");
+    if (savedBase) {
+      return savedBase;
+    }
+
+    if (window.TRIALSIGHT_CONFIG?.apiBase) {
+      return window.TRIALSIGHT_CONFIG.apiBase;
+    }
+
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+
+    return window.location.origin;
   },
   set apiBase(value) {
     localStorage.setItem("paperlens_api_base", value);
@@ -37,15 +50,20 @@ async function request(path, options = {}) {
 
 function bindApiBaseInput(inputId, statusId) {
   const input = document.getElementById(inputId);
+  const status = statusId ? document.getElementById(statusId) : null;
+
   if (!input) {
+    if (status) {
+      status.textContent = "Secure evidence workspace";
+    }
     return;
   }
+
   input.value = storage.apiBase;
   input.addEventListener("change", async () => {
     storage.apiBase = input.value.trim();
-    const status = statusId ? document.getElementById(statusId) : null;
     if (status) {
-      status.textContent = `Backend set to ${storage.apiBase}`;
+      status.textContent = "Secure evidence workspace";
     }
   });
 }

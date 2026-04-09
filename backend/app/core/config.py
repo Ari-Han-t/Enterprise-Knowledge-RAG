@@ -23,10 +23,21 @@ class Settings(BaseSettings):
 
     max_file_size_bytes: int = 10 * 1024 * 1024
     max_uploads_per_day: int = 5
-    max_queries_per_minute: int = 10
+    max_files_per_upload: int = 1
+    max_queries_per_minute: int = 4
+    max_queries_per_day: int = 25
+    demo_global_queries_per_minute: int = 8
+    demo_global_queries_per_day: int = 250
     max_input_tokens: int = 1200
     max_generation_tokens: int = 500
-    max_queries_per_day: int =25
+
+    groq_requests_per_minute: int = 20
+    groq_requests_per_day: int = 500
+    groq_tokens_per_minute: int = 4000
+    groq_tokens_per_day: int = 100000
+    groq_max_concurrent_requests: int = 2
+    groq_answer_scoring_enabled: bool = False
+
     top_k_dense: int = 8
     top_k_keyword: int = 8
     top_k_final: int = 6

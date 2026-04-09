@@ -14,7 +14,7 @@ class InMemoryRateLimitStore:
         self._lock = threading.Lock()
         self._counters: dict[str, dict[str, int]] = {}
 
-    def hit(self, *, key: str, limit: int, window_seconds: int) -> dict:
+    def hit(self, *, key: str, limit: int, window_seconds: int, amount: int = 1) -> dict:
         now = int(time.time())
         with self._lock:
             state = self._counters.get(key)
@@ -22,7 +22,7 @@ class InMemoryRateLimitStore:
                 state = {"count": 0, "reset_at": now + window_seconds}
                 self._counters[key] = state
 
-            state["count"] += 1
+            state["count"] += amount
             allowed = state["count"] <= limit
             remaining = max(limit - state["count"], 0)
             retry_after = max(state["reset_at"] - now, 1)
@@ -35,12 +35,12 @@ class RedisRateLimitStore:
         self.client = redis.Redis.from_url(url, decode_responses=True)
         self.client.ping()
 
-    def hit(self, *, key: str, limit: int, window_seconds: int) -> dict:
+    def hit(self, *, key: str, limit: int, window_seconds: int, amount: int = 1) -> dict:
         pipe = self.client.pipeline()
-        pipe.incr(key, 1)
+        pipe.incrby(key, amount)
         pipe.ttl(key)
         current, ttl = pipe.execute()
-        if int(current) == 1 or int(ttl) < 0:
+        if int(current) == amount or int(ttl) < 0:
             self.client.expire(key, window_seconds)
             ttl = window_seconds
 
@@ -63,4 +63,3 @@ def _build_store():
 
 
 rate_limit_store = _build_store()
-

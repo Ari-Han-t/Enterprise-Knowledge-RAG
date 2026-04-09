@@ -90,10 +90,10 @@ class RetrievalService:
         reranked = self._rerank(query=query, hits=merged)
         return {"hits": reranked[: settings.top_k_final]}
 
-    def build_cache_key(self, *, db: Session, user_id: str, rewritten_query: str) -> str:
+    def build_cache_key(self, *, db: Session, user_id: str, query_text: str) -> str:
         version = db.scalar(select(func.max(Document.created_at)).where(Document.user_id == user_id))
         version_str = version.isoformat() if version else "empty"
-        raw = f"{user_id}:{rewritten_query.strip().lower()}:{version_str}"
+        raw = f"{user_id}:{query_text.strip().lower()}:{version_str}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def get_cached_answer(self, *, db: Session, cache_key: str) -> dict | None:

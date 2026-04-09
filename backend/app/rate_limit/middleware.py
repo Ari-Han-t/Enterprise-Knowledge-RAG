@@ -48,6 +48,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if limited is not None:
                 return limited
 
+            limited = self._enforce_global_scope(
+                scope="demo_query",
+                limit=settings.demo_global_queries_per_minute,
+                window_seconds=60,
+            )
+            if limited is not None:
+                return limited
+
+            limited = self._enforce_global_scope(
+                scope="demo_query_day",
+                limit=settings.demo_global_queries_per_day,
+                window_seconds=86400,
+            )
+            if limited is not None:
+                return limited
+
 
         elif path in {"/auth/login", "/auth/signup"} and method == "POST":
             limited = self._enforce_scope(request, scope="auth", limit=10, window_seconds=60, user_scoped=False)
@@ -89,6 +105,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         return None
 
+    def _enforce_global_scope(
+        self,
+        *,
+        scope: str,
+        limit: int,
+        window_seconds: int,
+    ) -> JSONResponse | None:
+        result = rate_limit_store.hit(
+            key=f"{scope}:global",
+            limit=limit,
+            window_seconds=window_seconds,
+        )
+        if not result["allowed"]:
+            return self._limit_response(scope, result["retry_after"])
+        return None
+
     @staticmethod
     def _limit_response(scope: str, retry_after: int) -> JSONResponse:
         return JSONResponse(
@@ -115,4 +147,3 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return payload.get("sub")
         except JWTError:
             return None
-
