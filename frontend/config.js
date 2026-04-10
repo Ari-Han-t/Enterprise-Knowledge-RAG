@@ -1,3 +1,3 @@
 window.TRIALSIGHT_CONFIG = {
-  apiBase: "http://localhost:8000",
+  apiBase: "https://enterprise-knowledge-rag.onrender.com",
 };
