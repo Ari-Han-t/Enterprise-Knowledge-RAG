@@ -1,264 +1,130 @@
-# Enterprise Knowledge RAG
+# TrialSight Intelligence
 
-Enterprise Knowledge RAG is a FastAPI backend for building a private, user-scoped knowledge assistant over enterprise documents and media. It ingests files, stores embeddings in ChromaDB, retrieves relevant context per user, and answers questions with Groq while forcing responses to stay grounded in uploaded material.
+Clinical Trial Evidence Assistant built as a multi-user RAG system for reviewing trial PDFs, retrieving supporting evidence, and generating citation-grounded answers under strict cost and abuse controls.
 
-## What it does
+This is not a generic "chat with PDF" demo. It is a scoped product-style system designed around a real workflow:
 
-- User authentication with JWT-based signup and login
-- Per-user document collections and chat history
-- Retrieval-augmented question answering over uploaded company knowledge
-- Streaming answers over Server-Sent Events
-- Multimodal ingestion for text, PDFs, slides, images, and audio
-- OCR and transcription support for scanned/image and audio inputs
+- upload trial documents
+- isolate data per user
+- retrieve relevant evidence
+- answer with citations
+- enforce hard rate limits before LLM spend happens
 
-## Good use cases
+## Why It Stands Out
 
-- Internal policy and handbook Q&A
-- Sales enablement over decks, PDFs, and notes
-- Knowledge search for operations or support teams
-- Contract, SOP, or documentation lookup across uploaded files
-- Team-specific assistants where each user keeps their own indexed knowledge base
+- Niche use case: clinical trial evidence review
+- Multi-user architecture with JWT auth and per-user data isolation
+- Hybrid retrieval instead of plain keyword search
+- Cost-aware by design with Groq as the default LLM provider
+- Strict demo-safe rate limiting to protect against abuse and accidental spend
+- Lightweight deployment path without heavy local model infrastructure
 
-## Supported file types
+## Core Capabilities
 
-The upload pipeline currently supports:
+- PDF upload and ingestion
+- Chunked document processing with source-aware citations
+- Hybrid retrieval:
+  - hashed dense retrieval
+  - BM25 keyword search
+  - reranking
+- Query rewriting before retrieval
+- Citation-grounded answer generation
+- Streaming responses
+- Query history and evaluation logging
+- Cache-aware repeated question handling
 
-- Text: `txt`
-- PDF: `pdf`
-- PowerPoint: `pptx`
-- Images with OCR: `png`, `jpg`, `jpeg`
-- Audio transcription: `mp3`, `wav`, `m4a`, `flac`, `ogg`
+## Safety and Demo Controls
 
-## Tech stack
+- JWT authentication
+- Per-user document isolation
+- Upload size limits
+- Upload/day limits
+- Query/minute and query/day limits
+- Global demo query caps
+- Groq request, token, and concurrency guards
+- Redis-backed rate limiting with in-memory fallback
 
-- FastAPI + Uvicorn
-- Groq for LLM inference
-- Sentence Transformers (`all-MiniLM-L6-v2` by default) for embeddings
-- ChromaDB for persistent vector storage
-- Tesseract + Poppler for OCR workflows
-- Whisper for audio transcription
+## Tech Stack
 
-## Project structure
-
-```text
-.
-├── docker-compose.yml
-└── Backend/
-    ├── main.py
-    ├── requirements.txt
-    ├── Dockerfile
-    └── .env   # create this locally
-```
-
-## Environment variables
-
-The backend loads environment variables from `Backend/.env`.
-
-Minimum required variable:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-Recommended full example:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
-JWT_SECRET=replace-this-with-a-long-random-secret
-CHROMA_DIR=data/chroma
-EMBED_MODEL_NAME=all-MiniLM-L6-v2
-MIN_SIMILARITY=0.30
-MAX_K=6
-WHISPER_MODEL=base
-
-# Needed mainly for local Windows setups if OCR/PDF extraction is used
-TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
-POPPLER_PATH=C:\path\to\poppler\Library\bin
-```
-
-## Add your Groq API key
-
-1. Create a Groq API key from your Groq account.
-2. Create the file `Backend/.env`.
-3. Add at least:
-
-```env
-GROQ_API_KEY=your_real_key_here
-```
-
-4. Set `JWT_SECRET` to a strong random value before using this outside local testing.
-
-The application will fail to start if `GROQ_API_KEY` is missing.
-
-## Run with Docker
-
-This is the easiest path because the container already installs system packages required for OCR and audio processing.
-
-### Prerequisites
-
+- FastAPI
+- SQLite
+- Redis
+- Groq
+- BM25 + lightweight dense retrieval
+- Static frontend
 - Docker
-- Docker Compose
 
-### Start
-
-1. Create `Backend/.env` using the example above.
-2. From the repository root, run:
-
-```bash
-docker compose up --build
-```
-
-3. The API will be available at:
+## Project Structure
 
 ```text
-http://localhost:8000
+backend/
+  app/
+    api/
+    core/
+    models/
+    rag/
+    rate_limit/
+    schemas/
+    services/
+frontend/
+docker-compose.yml
 ```
 
-4. Health check:
+## Local Run
 
-```text
-http://localhost:8000/health
-```
-
-## Run locally
-
-### Prerequisites
-
-- Python 3.11
-- Tesseract OCR
-- Poppler
-- FFmpeg
-
-### Install Python dependencies
-
-From the `Backend` folder:
+### Backend
 
 ```bash
-pip install "numpy<2.0"
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+copy .env.example .env
+uvicorn main:app --reload
 ```
 
-### Start the server
-
-From the `Backend` folder:
+### Frontend
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+cd frontend
+py -3 -m http.server 3000
 ```
 
-### Windows note
+Open:
 
-If you want image OCR or scanned PDF extraction on Windows, set these in `Backend/.env` to your local installs:
-
-- `TESSERACT_CMD`
-- `POPPLER_PATH`
-
-If you do not set them correctly, OCR-related uploads may fail even though plain text and standard PDFs still work.
-
-## API workflow
-
-### 1. Sign up
-
-`POST /auth/signup`
-
-Example body:
-
-```json
-{
-  "username": "alice",
-  "password": "strong-password"
-}
+```text
+http://localhost:3000/login.html?v=3
 ```
 
-### 2. Log in
+## Environment
 
-`POST /auth/login`
+Copy `backend/.env.example` to `backend/.env`.
 
-Example body:
+Important values:
 
-```json
-{
-  "username": "alice",
-  "password": "strong-password"
-}
+```env
+JWT_SECRET=replace-this
+DATABASE_URL=sqlite:///./data/app.db
+REDIS_URL=redis://redis:6379/0
+GROQ_API_KEY=your_key_here
+GROQ_MODEL=llama-3.1-8b-instant
 ```
 
-This returns an `access_token`. Use it as a Bearer token for protected routes.
+No API keys are hardcoded. `.env` is ignored by git.
 
-### 3. Upload files
-
-`POST /upload`
-
-Send a multipart form request with the file and the Bearer token.
-
-### 4. Ask questions
-
-`POST /ask`
-
-Example body:
-
-```json
-{
-  "question": "What does the onboarding policy say about probation?"
-}
-```
-
-The backend retrieves the most relevant chunks from the current user's collection and asks Groq to answer only from that context.
-
-### 5. Stream answers
-
-`POST /ask/stream`
-
-Returns an SSE stream for incremental responses.
-
-### 6. View saved chat history
-
-`GET /history`
-
-Returns the authenticated user's saved Q&A history.
-
-## Important behavior
-
-- Data is isolated per user.
-- Answers are designed to stay grounded in uploaded content.
-- If no relevant context is found, the app refuses rather than fabricating an answer.
-- Chat history is persisted per user.
-- Vector data is stored on disk through ChromaDB persistence.
-
-## Operational notes
-
-- First startup can be slower because embedding and transcription models may need to download.
-- Large local caches, user data, and runtime artifacts are intentionally ignored by git.
-- This repository currently contains the backend service only.
-
-## Default runtime settings
-
-Current defaults in the backend:
-
-- `GROQ_MODEL=llama-3.3-70b-versatile`
-- `CHROMA_DIR=data/chroma`
-- `EMBED_MODEL_NAME=all-MiniLM-L6-v2`
-- `MIN_SIMILARITY=0.30`
-- `MAX_K=6`
-- `WHISPER_MODEL=base`
-
-## Security notes
-
-- Change `JWT_SECRET` before any shared or production deployment.
-- Do not commit `Backend/.env`.
-- Uploaded enterprise data is stored locally on disk unless you change the storage setup.
-
-## Quick start
-
-```bash
-cd Backend
-```
-
-Create `Backend/.env`, then from the repository root:
+## Docker
 
 ```bash
 docker compose up --build
 ```
 
-Open `http://localhost:8000/docs` for the FastAPI Swagger UI once the server is running.
+## Interview Pitch
+
+TrialSight Intelligence is a domain-focused RAG application for clinical evidence review. Instead of building a generic chatbot, this project wraps an LLM in a retrieval, security, and cost-control layer so users can query their own document corpus with grounded answers, citations, persistence, and abuse protection.
+
+In short: it shows product thinking, backend architecture, RAG design, multi-user isolation, and deployment awareness in one project.
+
+## Deployment
+
+Deployment setup and public URL notes will be added here.
+

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrialSight Intelligence Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=3" />
+</head>
+<body>
+  <main class="layout auth-layout">
+    <section class="hero hero-tight">
+      <p class="eyebrow">TrialSight Intelligence</p>
+      <h1>Clinical trial evidence review with briefing-room discipline.</h1>
+      <p class="lede">Built for focused document interrogation, TrialSight helps reviewers inspect clinical trial PDFs, isolate source-backed findings, and preserve a clean operator workflow.</p>
+    </section>
+
+    <section class="panel auth-page-panel">
+      <div class="grid">
+        <div class="card auth-info-card">
+          <p class="section-kicker">Mission Profile</p>
+          <h2>Clinical Trial Evidence Assistant</h2>
+          <p class="brief-copy">Use this console to ingest trial reports, endpoint summaries, and safety documents, then query them for evidence-backed answers with citations.</p>
+          <div class="intel-list">
+            <div class="intel-item">
+              <span class="intel-label">Focus</span>
+              <strong>Endpoint and evidence analysis</strong>
+            </div>
+            <div class="intel-item">
+              <span class="intel-label">Designed For</span>
+              <strong>Focused clinical evidence review</strong>
+            </div>
+            <div class="intel-item">
+              <span class="intel-label">Environment</span>
+              <strong id="backendState">Secure evidence workspace</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card auth-form-card">
+          <div class="tabs">
+            <button id="showLoginBtn" class="tab active" type="button">Operator Login</button>
+            <button id="showSignupBtn" class="tab ghost-tab" type="button">New Analyst</button>
+          </div>
+
+          <div id="loginForm">
+            <p class="section-kicker">Workspace Access</p>
+            <h2>Resume investigation</h2>
+            <input id="loginEmail" type="email" placeholder="analyst@org.com" />
+            <input id="loginPassword" type="password" placeholder="access phrase" />
+            <button id="loginBtn" type="button">Enter workspace</button>
+          </div>
+
+          <div id="signupForm" class="hidden">
+            <p class="section-kicker">New Workspace Access</p>
+            <h2>Provision account</h2>
+            <input id="signupEmail" type="email" placeholder="analyst@org.com" />
+            <input id="signupPassword" type="password" placeholder="minimum 8 characters" />
+            <button id="signupBtn" type="button">Create analyst account</button>
+          </div>
+
+          <p id="authState" class="status"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./config.js?v=3"></script>
+  <script src="./app.js?v=3"></script>
+  <script src="./login.js?v=3"></script>
+</body>
+</html>
